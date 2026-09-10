@@ -12,4 +12,7 @@ class UserRepositoryImpl(
 ) : UserRepository {
     override fun findById(id: Int): User? =
         jpa.findById(id).getOrNull()?.toDomain()
+
+    override fun findByIdForUpdate(id: Int): User? =
+        jpa.findByIdForUpdate(id).getOrNull()?.toDomain()
 }

@@ -8,7 +8,7 @@ import com.cocos.challenge.application.repository.MarketDataRepository
 import com.cocos.challenge.application.repository.OrderRepository
 import com.cocos.challenge.application.repository.UserRepository
 import com.cocos.challenge.domain.model.Instrument
-import com.cocos.challenge.domain.model.Order
+import com.cocos.challenge.domain.model.OrderAggregate
 import com.cocos.challenge.domain.model.Portfolio
 import com.cocos.challenge.domain.model.Position
 import com.cocos.challenge.domain.service.BalanceCalculator
@@ -27,19 +27,19 @@ class GetPortfolioUseCaseImpl(
     @Transactional(readOnly = true)
     override fun execute(userId: Int): PortfolioResponse {
         val user = userRepository.findById(userId) ?: throw UserNotFoundException(userId)
-        val orders = orderRepository.findByUserId(userId)
+        val aggregates = orderRepository.aggregateByUser(userId)
 
         return PortfolioResponse.from(
             Portfolio(
                 user = user,
-                availableCash = BalanceCalculator.availableCash(orders),
-                positions = buildPositions(orders)
+                availableCash = BalanceCalculator.availableCash(aggregates),
+                positions = buildPositions(aggregates)
             )
         )
     }
 
-    private fun buildPositions(orders: List<Order>): List<Position> {
-        val instrumentIds = orders.map { it.instrumentId }.toSet()
+    private fun buildPositions(aggregates: List<OrderAggregate>): List<Position> {
+        val instrumentIds = aggregates.map { it.instrumentId }.toSet()
         if (instrumentIds.isEmpty()) return emptyList()
 
         val instruments = instrumentIds.mapNotNull { instrumentRepository.findById(it) }
@@ -50,7 +50,7 @@ class GetPortfolioUseCaseImpl(
         return instruments.mapNotNull { instrument ->
             PositionBuilder(
                 instrument = instrument,
-                orders = orders,
+                aggregates = aggregates,
                 marketData = marketDataByInstrument[instrument.id]
             ).build()
         }

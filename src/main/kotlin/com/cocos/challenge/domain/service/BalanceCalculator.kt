@@ -1,75 +1,66 @@
 package com.cocos.challenge.domain.service
 
-import com.cocos.challenge.domain.model.Order
+import com.cocos.challenge.domain.model.OrderAggregate
 import com.cocos.challenge.domain.model.OrderSide
 import com.cocos.challenge.domain.model.OrderStatus
 import java.math.BigDecimal
 import java.math.RoundingMode
 
 /**
- * Pure domain logic to compute the cash and share balances from the order history.
+ * Pure domain logic to compute cash / share balances from a pre-aggregated view of the
+ * user's order history (one row per `(instrumentId, side, status)`).
  *
  * We follow real-broker semantics: NEW LIMIT orders reserve funds (BUY) or shares (SELL),
  * so they are not available for other orders until they are FILLED or CANCELLED/REJECTED.
+ *
+ * The functions are deliberately pure over `List<OrderAggregate>` — the SQL side just
+ * has to return the sums; the sign rules stay expressed in one place, in Kotlin.
  */
 object BalanceCalculator {
 
-    fun availableCash(orders: List<Order>): BigDecimal =
-        orders.fold(BigDecimal.ZERO) { acc, order ->
-            when {
-                order.status == OrderStatus.FILLED -> acc.add(cashDelta(order))
-                order.status == OrderStatus.NEW && order.side == OrderSide.BUY ->
-                    acc.subtract(order.totalAmount)
-                else -> acc
-            }
-        }
+    fun availableCash(aggregates: List<OrderAggregate>): BigDecimal =
+        aggregates.fold(BigDecimal.ZERO) { acc, agg -> acc.add(agg.cashDelta()) }
 
-    /**
-     * Shares available to be sold for a given instrument. FILLED buys/sells settle the
-     * position; NEW sells reserve shares that can no longer be sold in another order.
-     */
-    fun availableShares(orders: List<Order>, instrumentId: Int): Int =
-        orders.filter { it.instrumentId == instrumentId }.sumOf { order ->
-            when {
-                order.status == OrderStatus.FILLED && order.side == OrderSide.BUY -> order.size
-                order.status == OrderStatus.FILLED && order.side == OrderSide.SELL -> -order.size
-                order.status == OrderStatus.NEW && order.side == OrderSide.SELL -> -order.size
-                else -> 0
-            }
-        }
+    fun availableShares(aggregates: List<OrderAggregate>, instrumentId: Int): Int =
+        aggregates.filter { it.instrumentId == instrumentId }.sumOf { it.sharesDelta() }
 
-    /**
-     * Net quantity currently held (only FILLED orders). This is the accounting quantity
-     * used for market-value calculations, independent of NEW SELL reservations.
-     */
-    fun heldQuantity(orders: List<Order>, instrumentId: Int): Int =
-        orders.filter { it.instrumentId == instrumentId && it.status == OrderStatus.FILLED }
-            .sumOf { order ->
-                when (order.side) {
-                    OrderSide.BUY -> order.size
-                    OrderSide.SELL -> -order.size
+    fun heldQuantity(aggregates: List<OrderAggregate>, instrumentId: Int): Int =
+        aggregates
+            .filter { it.instrumentId == instrumentId && it.status == OrderStatus.FILLED }
+            .sumOf { agg ->
+                when (agg.side) {
+                    OrderSide.BUY -> agg.totalSize
+                    OrderSide.SELL -> -agg.totalSize
                     else -> 0
                 }
             }
 
-    /**
-     * Weighted average price of FILLED buys for a given instrument. Used to compute
-     * total return against the current market price.
-     */
-    fun averageBuyPrice(orders: List<Order>, instrumentId: Int): BigDecimal {
-        val buys = orders.filter {
+    fun averageBuyPrice(aggregates: List<OrderAggregate>, instrumentId: Int): BigDecimal {
+        val buys = aggregates.filter {
             it.instrumentId == instrumentId &&
                 it.status == OrderStatus.FILLED &&
                 it.side == OrderSide.BUY
         }
-        val totalSize = buys.sumOf { it.size }
+        val totalSize = buys.sumOf { it.totalSize }
         if (totalSize == 0) return BigDecimal.ZERO
-        val totalCost = buys.fold(BigDecimal.ZERO) { acc, o -> acc.add(o.totalAmount) }
+        val totalCost = buys.fold(BigDecimal.ZERO) { acc, a -> acc.add(a.totalAmount) }
         return totalCost.divide(BigDecimal(totalSize), 6, RoundingMode.HALF_UP)
     }
 
-    private fun cashDelta(order: Order): BigDecimal = when (order.side) {
-        OrderSide.CASH_IN, OrderSide.SELL -> order.totalAmount
-        OrderSide.CASH_OUT, OrderSide.BUY -> order.totalAmount.negate()
+    private fun OrderAggregate.cashDelta(): BigDecimal = when {
+        status == OrderStatus.FILLED && (side == OrderSide.CASH_IN || side == OrderSide.SELL) ->
+            totalAmount
+        status == OrderStatus.FILLED && (side == OrderSide.CASH_OUT || side == OrderSide.BUY) ->
+            totalAmount.negate()
+        status == OrderStatus.NEW && side == OrderSide.BUY ->
+            totalAmount.negate()
+        else -> BigDecimal.ZERO
+    }
+
+    private fun OrderAggregate.sharesDelta(): Int = when {
+        status == OrderStatus.FILLED && side == OrderSide.BUY -> totalSize
+        status == OrderStatus.FILLED && side == OrderSide.SELL -> -totalSize
+        status == OrderStatus.NEW && side == OrderSide.SELL -> -totalSize
+        else -> 0
     }
 }

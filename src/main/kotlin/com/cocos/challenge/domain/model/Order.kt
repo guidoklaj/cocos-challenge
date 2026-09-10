@@ -1,6 +1,5 @@
 package com.cocos.challenge.domain.model
 
-import com.cocos.challenge.domain.service.BalanceCalculator
 import java.math.BigDecimal
 import java.time.LocalDateTime
 
@@ -25,12 +24,18 @@ data class Order(
 
     companion object {
         /**
-         * Domain factory that decides the order's initial status from the user's order history.
+         * Domain factory that decides the order's initial status against pre-computed
+         * balance scalars supplied by the caller.
          *
-         * - BUY / CASH_OUT reject if the user has less available cash than `size * price`.
-         * - SELL rejects if the user has less available shares of that instrument than `size`.
+         * - BUY / CASH_OUT require `availableCash`; the order is `REJECTED` if it doesn't
+         *   cover `size * price`.
+         * - SELL requires `availableShares` for the target instrument; `REJECTED` if it
+         *   doesn't cover `size`.
          * - CASH_IN always funds.
-         * - Once funded, MARKET orders and cash movements are FILLED; LIMIT orders stay NEW.
+         * - Once funded, MARKET orders and cash movements are `FILLED`; LIMIT orders stay `NEW`.
+         *
+         * Callers are expected to serialize concurrent creations for the same user (e.g. via
+         * a per-user lock) so the scalars they compute from the DB reflect committed state.
          */
         fun create(
             userId: Int,
@@ -39,15 +44,20 @@ data class Order(
             size: Int,
             price: BigDecimal,
             type: OrderType,
-            existingOrders: List<Order>,
+            availableCash: BigDecimal? = null,
+            availableShares: Int? = null,
             now: LocalDateTime = LocalDateTime.now()
         ): Order {
             val totalAmount = price.multiply(BigDecimal(size))
             val funded = when (side) {
                 OrderSide.BUY, OrderSide.CASH_OUT ->
-                    BalanceCalculator.availableCash(existingOrders) >= totalAmount
+                    requireNotNull(availableCash) {
+                        "availableCash is required for $side orders"
+                    } >= totalAmount
                 OrderSide.SELL ->
-                    BalanceCalculator.availableShares(existingOrders, instrumentId) >= size
+                    requireNotNull(availableShares) {
+                        "availableShares is required for SELL orders"
+                    } >= size
                 OrderSide.CASH_IN -> true
             }
             val status = when {

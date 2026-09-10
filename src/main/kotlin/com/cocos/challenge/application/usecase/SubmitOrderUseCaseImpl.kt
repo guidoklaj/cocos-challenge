@@ -15,6 +15,7 @@ import com.cocos.challenge.domain.model.Instrument
 import com.cocos.challenge.domain.model.Order
 import com.cocos.challenge.domain.model.OrderSide
 import com.cocos.challenge.domain.model.OrderType
+import com.cocos.challenge.domain.service.BalanceCalculator
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -42,7 +43,23 @@ class SubmitOrderUseCaseImpl(
         val instrument = resolveInstrument(request, side)
         val price = resolvePrice(side, type, instrument, request.price)
         val size = resolveSize(request.size, request.amount, price)
-        val existingOrders = orderRepository.findByUserId(userId)
+
+
+        // Serialize concurrent order submissions for this user. Once acquired, no other
+        // transaction can insert an order for this userId until we commit — the balance
+        // scalars we're about to compute reflect a stable, committed view of the world.
+        orderRepository.lockUserForOrderWrite(userId)
+
+        val availableCash = when (side) {
+            OrderSide.BUY, OrderSide.CASH_OUT ->
+                BalanceCalculator.availableCash(orderRepository.aggregateByUser(userId))
+            else -> null
+        }
+        val availableShares = when (side) {
+            OrderSide.SELL ->
+                BalanceCalculator.availableShares(orderRepository.aggregateByUser(userId), instrument.id)
+            else -> null
+        }
 
         val order = Order.create(
             userId = userId,
@@ -51,7 +68,8 @@ class SubmitOrderUseCaseImpl(
             size = size,
             price = price,
             type = type,
-            existingOrders = existingOrders
+            availableCash = availableCash,
+            availableShares = availableShares
         )
         return OrderResponse.from(orderRepository.save(order))
     }
