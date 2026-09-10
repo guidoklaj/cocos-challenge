@@ -17,6 +17,8 @@ data class UserHolding(
 
     fun hasEnoughShares(size: Int): Boolean = availableShares >= size
 
+    fun cancelOrder(order: Order): UserHolding = copy(availableShares = availableShares + order.size)
+
     fun applyOrder(order: Order): UserHolding? = when (order.side) {
         OrderSide.BUY -> when (order.status) {
             OrderStatus.FILLED -> copy(

@@ -10,6 +10,8 @@ data class User(
 ) {
     fun canAfford(amount: BigDecimal): Boolean = availableCash >= amount
 
+    fun cancelOrder(order: Order): User = copy(availableCash = availableCash + order.totalAmount)
+
     fun applyOrder(order: Order): User {
         val delta = when (order.side) {
             OrderSide.BUY      -> -order.totalAmount

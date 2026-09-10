@@ -1,5 +1,6 @@
 package com.cocos.challenge.api.controller
 
+import com.cocos.challenge.api.annotation.Idempotent
 import com.cocos.challenge.api.request.SubmitOrderRequest
 import com.cocos.challenge.api.response.OrderResponse
 import com.cocos.challenge.api.usecase.CancelOrderUseCase
@@ -20,6 +21,7 @@ class OrderController(
     private val submitOrderUseCase: SubmitOrderUseCase,
     private val cancelOrderUseCase: CancelOrderUseCase
 ) {
+    @Idempotent
     @PostMapping
     fun submit(@Valid @RequestBody request: SubmitOrderRequest): ResponseEntity<OrderResponse> =
         ResponseEntity.status(HttpStatus.CREATED).body(submitOrderUseCase.execute(request))

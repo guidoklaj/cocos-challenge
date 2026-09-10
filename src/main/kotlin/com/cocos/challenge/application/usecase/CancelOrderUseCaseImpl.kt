@@ -28,11 +28,11 @@ class CancelOrderUseCaseImpl(
 
         when (order.side) {
             OrderSide.BUY ->
-                userRepository.save(user.copy(availableCash = user.availableCash + order.totalAmount))
+                userRepository.save(user.cancelOrder(order))
             OrderSide.SELL -> {
                 val holding = userHoldingRepository.findByUserAndInstrument(order.userId, order.instrumentId)
                     ?: throw IllegalStateException("Holding not found for SELL order $orderId")
-                userHoldingRepository.save(holding.copy(availableShares = holding.availableShares + order.size))
+                userHoldingRepository.save(holding.cancelOrder(order))
             }
             else -> {}
         }

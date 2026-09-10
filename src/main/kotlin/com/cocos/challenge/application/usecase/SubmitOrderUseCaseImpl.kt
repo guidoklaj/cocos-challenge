@@ -15,7 +15,6 @@ import com.cocos.challenge.domain.exception.InvalidOrderException
 import com.cocos.challenge.domain.model.Instrument
 import com.cocos.challenge.domain.model.Order
 import com.cocos.challenge.domain.model.OrderSide
-import com.cocos.challenge.domain.model.OrderStatus
 import com.cocos.challenge.domain.model.OrderType
 import com.cocos.challenge.domain.model.UserHolding
 import org.springframework.beans.factory.annotation.Value
@@ -44,22 +43,15 @@ class SubmitOrderUseCaseImpl(
         val price = resolvePrice(side, type, instrument, request.price)
         val size = resolveSize(request.size, request.amount, price)
 
-        // Row-level write lock — serializes concurrent submissions for the same user.
         val user = userRepository.findByIdForUpdate(request.userId) ?: throw UserNotFoundException(request.userId)
         val holding = if (!instrument.isCash()) {
             userHoldingRepository.findByUserAndInstrument(request.userId, instrument.id)
                 ?: UserHolding.empty(request.userId, instrument.id)
         } else null
 
-        val totalAmount = price.multiply(BigDecimal(size))
-        val funded = when (side) {
-            OrderSide.BUY, OrderSide.CASH_OUT -> user.canAfford(totalAmount)
-            OrderSide.SELL                     -> holding?.hasEnoughShares(size) ?: false
-            OrderSide.CASH_IN                  -> true
-        }
-        val order = Order.create(request.userId, instrument.id, side, size, price, type, funded)
+        val order = Order.create(user, instrument.id, side, size, price, type, holding)
 
-        if (order.isRejected) {
+        if (!order.isRejected) {
             userRepository.save(user.applyOrder(order))
             holding?.applyOrder(order)?.let { userHoldingRepository.save(it) }
         }

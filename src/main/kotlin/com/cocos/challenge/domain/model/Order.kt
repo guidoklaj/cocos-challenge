@@ -23,27 +23,36 @@ data class Order(
     val isRejected: Boolean
         get() = status == OrderStatus.REJECTED
 
+    val creditsCash: Boolean
+        get() = side == OrderSide.CASH_IN || (side == OrderSide.SELL && status == OrderStatus.FILLED)
+
     fun cancelled(): Order = copy(status = OrderStatus.CANCELLED)
 
     companion object {
         fun create(
-            userId: Int,
+            user: User,
             instrumentId: Int,
             side: OrderSide,
             size: Int,
             price: BigDecimal,
             type: OrderType,
-            funded: Boolean,
+            holding: UserHolding?,
             now: LocalDateTime = LocalDateTime.now()
         ): Order {
+            val totalAmount = price.multiply(BigDecimal(size))
+            val funded = when (side) {
+                OrderSide.BUY, OrderSide.CASH_OUT -> user.canAfford(totalAmount)
+                OrderSide.SELL                     -> holding?.hasEnoughShares(size) ?: false
+                OrderSide.CASH_IN                  -> true
+            }
             val status = when {
-                !funded -> OrderStatus.REJECTED
+                !funded                                          -> OrderStatus.REJECTED
                 side.isCashMovement || type == OrderType.MARKET -> OrderStatus.FILLED
-                else -> OrderStatus.NEW
+                else                                            -> OrderStatus.NEW
             }
             return Order(
                 id = null,
-                userId = userId,
+                userId = user.id,
                 instrumentId = instrumentId,
                 side = side,
                 size = size,
