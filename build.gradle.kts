@@ -52,7 +52,7 @@ tasks.withType<Test> {
 }
 
 detekt {
-    config.setFrom(file("detekt.yml"))
+    config.setFrom(file(".detekt/detekt.yml"))
     buildUponDefaultConfig = true
     source.setFrom("src/main/kotlin")
 }
