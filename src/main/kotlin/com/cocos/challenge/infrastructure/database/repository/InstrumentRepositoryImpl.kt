@@ -34,9 +34,6 @@ class InstrumentRepositoryImpl(
             name?.takeIf { it.isNotBlank() }?.let {
                 predicates += cb.like(cb.lower(root.get("name")), "%${it.lowercase()}%")
             }
-            type?.let {
-                predicates += cb.equal(root.get<Any>("type"), it)
-            }
-            cb.and(*predicates.toTypedArray())
+cb.and(*predicates.toTypedArray())
         }
 }

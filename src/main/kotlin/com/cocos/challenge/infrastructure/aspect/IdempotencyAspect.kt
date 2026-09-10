@@ -30,7 +30,7 @@ class IdempotencyAspect(
         val key = idempotencyKey() ?: return pjp.proceed()
         val redisKey = "idempotency:$key"
 
-        val cached = try { redis.opsForValue().get(redisKey) } catch (e: Exception) {
+        val cached = try { redis.opsForValue().get(redisKey) } catch (_: Exception) {
             log.warn("Redis unavailable for idempotency check on key={}, proceeding without cache", key)
             return pjp.proceed()
         }
@@ -43,7 +43,7 @@ class IdempotencyAspect(
 
         try {
             redis.opsForValue().set(redisKey, serialize(result), Duration.ofSeconds(idempotent.ttlSeconds))
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             log.warn("Redis unavailable, idempotency key={} not stored", key)
         }
 

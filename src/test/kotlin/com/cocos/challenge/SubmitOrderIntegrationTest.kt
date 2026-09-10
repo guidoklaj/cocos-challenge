@@ -44,7 +44,7 @@ class SubmitOrderIntegrationTest {
             .andExpect(jsonPath("$.side").value("BUY"))
             .andExpect(jsonPath("$.type").value("MARKET"))
             .andExpect(jsonPath("$.size").value(10))
-            .andExpect(jsonPath("$.price").value(103.0))
+            .andExpect(jsonPath("$.price").value(925.85))
     }
 
     @Test
@@ -75,10 +75,10 @@ class SubmitOrderIntegrationTest {
             "ticker" to "PAMP",
             "side" to "BUY",
             "type" to "MARKET",
-            "amount" to 500
+            "amount" to 2000
         )
 
-        // Latest close for PAMP is 103.00 → 500 / 103 = 4 shares (floor)
+        // Latest close for PAMP is 925.85 → 2000 / 925.85 = 2 shares (floor)
         mockMvc.perform(
             post("/orders")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -86,7 +86,7 @@ class SubmitOrderIntegrationTest {
         )
             .andExpect(status().isCreated)
             .andExpect(jsonPath("$.status").value("FILLED"))
-            .andExpect(jsonPath("$.size").value(4))
+            .andExpect(jsonPath("$.size").value(2))
     }
 
     @Test

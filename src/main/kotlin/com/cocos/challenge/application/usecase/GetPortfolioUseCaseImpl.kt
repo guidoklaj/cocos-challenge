@@ -3,14 +3,12 @@ package com.cocos.challenge.application.usecase
 import com.cocos.challenge.api.response.PortfolioResponse
 import com.cocos.challenge.api.usecase.GetPortfolioUseCase
 import com.cocos.challenge.application.exception.UserNotFoundException
-import com.cocos.challenge.application.repository.InstrumentRepository
 import com.cocos.challenge.application.repository.MarketDataRepository
 import com.cocos.challenge.application.repository.UserHoldingRepository
 import com.cocos.challenge.application.repository.UserRepository
 import com.cocos.challenge.domain.model.Portfolio
 import com.cocos.challenge.domain.model.Position
 import com.cocos.challenge.domain.model.UserHolding
-import com.cocos.challenge.domain.service.PositionBuilder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -18,14 +16,14 @@ import org.springframework.transaction.annotation.Transactional
 class GetPortfolioUseCaseImpl(
     private val userRepository: UserRepository,
     private val userHoldingRepository: UserHoldingRepository,
-    private val instrumentRepository: InstrumentRepository,
     private val marketDataRepository: MarketDataRepository
 ) : GetPortfolioUseCase {
 
     @Transactional(readOnly = true)
     override fun execute(userId: Int): PortfolioResponse {
         val user = userRepository.findById(userId) ?: throw UserNotFoundException(userId)
-        val holdings = userHoldingRepository.findByUserId(userId).filter { it.heldShares > 0 }
+        val holdings = userHoldingRepository.findByUserId(userId)
+            .filter { it.isPositionable() }
 
         return PortfolioResponse.from(
             Portfolio(
@@ -38,14 +36,9 @@ class GetPortfolioUseCaseImpl(
 
     private fun buildPositions(holdings: List<UserHolding>): List<Position> {
         if (holdings.isEmpty()) return emptyList()
-
-        val instrumentIds = holdings.map { it.instrumentId }
-        val instruments = instrumentIds.mapNotNull { instrumentRepository.findById(it) }.associateBy { it.id }
-        val marketDataByInstrument = marketDataRepository.findLatestForInstrumentIds(instrumentIds)
-
-        return holdings.mapNotNull { holding ->
-            val instrument = instruments[holding.instrumentId] ?: return@mapNotNull null
-            PositionBuilder(instrument, holding, marketDataByInstrument[holding.instrumentId]).build()
+        val marketDataByInstrument = marketDataRepository.findLatestForInstrumentIds(holdings.map { it.instrumentId })
+        return holdings.map { holding ->
+            Position.from(holding, marketDataByInstrument[holding.instrumentId])
         }
     }
 }

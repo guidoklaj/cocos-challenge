@@ -1,0 +1,55 @@
+build:
+  maxIssues: 0
+
+style:
+  MagicNumber:
+    active: false  # Spring/JPA annotations and HTTP status codes make this noisy
+  WildcardImport:
+    active: true
+  UnusedImports:
+    active: true
+  MaxLineLength:
+    active: true
+    maxLineLength: 150
+  ReturnCount:
+    active: true
+    max: 4
+  ThrowsCount:
+    active: true
+    max: 3
+  ForbiddenComment:
+    active: false
+  UseCheckOrError:
+    active: true
+
+complexity:
+  LongMethod:
+    active: true
+    threshold: 40
+  LongParameterList:
+    active: true
+    functionThreshold: 9
+    constructorThreshold: 10  # JPA entities naturally have many fields
+  CyclomaticComplexMethod:
+    active: true
+    threshold: 10
+
+naming:
+  FunctionNaming:
+    active: true
+    functionPattern: '[a-z][a-zA-Z0-9]*'
+
+exceptions:
+  TooGenericExceptionCaught:
+    active: false  # Redis client can throw many subtypes; catching Exception is intentional for fallback
+  SwallowedException:
+    active: true
+    ignoredExceptionTypes:
+      - InterruptedException
+
+performance:
+  SpreadOperator:
+    active: false  # Standard pattern in Spring Boot main and JPA Criteria API (cb.and(*predicates))
+
+potential-bugs:
+  active: true

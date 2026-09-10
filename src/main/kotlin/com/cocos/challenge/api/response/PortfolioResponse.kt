@@ -27,6 +27,7 @@ data class PositionResponse(
     val name: String,
     val quantity: Int,
     val marketValue: BigDecimal,
+    val dailyReturnPercentage: BigDecimal,
     val totalReturnPercentage: BigDecimal
 ) {
     companion object {
@@ -36,6 +37,7 @@ data class PositionResponse(
             name = position.instrument.name,
             quantity = position.quantity,
             marketValue = position.marketValue,
+            dailyReturnPercentage = position.dailyReturnPercentage,
             totalReturnPercentage = position.totalReturnPercentage
         )
     }

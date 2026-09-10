@@ -49,7 +49,7 @@ SELECT o.user_id,
            END) AS total_buy_cost
 FROM orders o
          JOIN instruments i ON i.id = o.instrument_id
-WHERE i.type != 'MONEDA'
+WHERE i.type != 'CURRENCY'
 GROUP BY o.user_id, o.instrument_id
 HAVING SUM(CASE
                WHEN o.side = 'BUY' AND o.status = 'FILLED' THEN o.size

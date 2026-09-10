@@ -2,12 +2,12 @@ package com.cocos.challenge.application.usecase
 
 import com.cocos.challenge.api.response.OrderResponse
 import com.cocos.challenge.api.usecase.CancelOrderUseCase
+import com.cocos.challenge.application.exception.OrderNotCancellableException
 import com.cocos.challenge.application.exception.OrderNotFoundException
 import com.cocos.challenge.application.exception.UserNotFoundException
 import com.cocos.challenge.application.repository.OrderRepository
 import com.cocos.challenge.application.repository.UserHoldingRepository
 import com.cocos.challenge.application.repository.UserRepository
-import com.cocos.challenge.domain.exception.OrderNotCancellableException
 import com.cocos.challenge.domain.model.OrderSide
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -31,7 +31,7 @@ class CancelOrderUseCaseImpl(
                 userRepository.save(user.cancelOrder(order))
             OrderSide.SELL -> {
                 val holding = userHoldingRepository.findByUserAndInstrument(order.userId, order.instrumentId)
-                    ?: throw IllegalStateException("Holding not found for SELL order $orderId")
+                    ?: error("Holding not found for SELL order $orderId")
                 userHoldingRepository.save(holding.cancelOrder(order))
             }
             else -> {}

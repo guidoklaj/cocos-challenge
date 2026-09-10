@@ -1,7 +1,7 @@
 package com.cocos.challenge.api.exception
 
 import com.cocos.challenge.application.exception.NotFoundException
-import com.cocos.challenge.domain.exception.ValidationException
+import com.cocos.challenge.application.exception.ValidationException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.http.converter.HttpMessageNotReadableException

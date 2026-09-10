@@ -3,12 +3,14 @@ package com.cocos.challenge.infrastructure.database.repository
 import com.cocos.challenge.application.repository.UserHoldingRepository
 import com.cocos.challenge.domain.model.UserHolding
 import com.cocos.challenge.infrastructure.database.entity.UserHoldingEntity
+import com.cocos.challenge.infrastructure.database.jpa.InstrumentJpaRepository
 import com.cocos.challenge.infrastructure.database.jpa.UserHoldingJpaRepository
 import org.springframework.stereotype.Repository
 
 @Repository
 class UserHoldingRepositoryImpl(
-    private val jpa: UserHoldingJpaRepository
+    private val jpa: UserHoldingJpaRepository,
+    private val instrumentJpa: InstrumentJpaRepository
 ) : UserHoldingRepository {
 
     override fun findByUserId(userId: Int): List<UserHolding> =
@@ -24,7 +26,13 @@ class UserHoldingRepositoryImpl(
                 heldShares = holding.heldShares
                 totalBuyCost = holding.totalBuyCost
             }
-        } ?: UserHoldingEntity.fromDomain(holding)
+        } ?: UserHoldingEntity(
+            userId = holding.userId,
+            instrument = instrumentJpa.getReferenceById(holding.instrumentId),
+            availableShares = holding.availableShares,
+            heldShares = holding.heldShares,
+            totalBuyCost = holding.totalBuyCost
+        )
         return jpa.save(entity).toDomain()
     }
 }

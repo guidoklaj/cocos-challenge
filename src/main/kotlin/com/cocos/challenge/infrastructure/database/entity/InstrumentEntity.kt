@@ -1,7 +1,6 @@
 package com.cocos.challenge.infrastructure.database.entity
 
 import com.cocos.challenge.domain.model.Instrument
-import com.cocos.challenge.domain.model.InstrumentType
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
@@ -26,12 +25,12 @@ class InstrumentEntity(
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    val type: InstrumentType
+    val type: InstrumentTypeEntity
 ) {
     fun toDomain(): Instrument = Instrument(
         id = requireNotNull(id) { "Persisted instrument must have an id" },
         ticker = ticker,
         name = name,
-        type = type
+        type = type.domain
     )
 }

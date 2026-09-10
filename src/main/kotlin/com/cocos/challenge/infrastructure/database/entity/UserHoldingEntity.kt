@@ -3,9 +3,12 @@ package com.cocos.challenge.infrastructure.database.entity
 import com.cocos.challenge.domain.model.UserHolding
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
+import jakarta.persistence.FetchType
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
+import jakarta.persistence.JoinColumn
+import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import java.math.BigDecimal
 
@@ -19,8 +22,9 @@ class UserHoldingEntity(
     @Column(name = "user_id", nullable = false)
     val userId: Int,
 
-    @Column(name = "instrument_id", nullable = false)
-    val instrumentId: Int,
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "instrument_id", nullable = false)
+    val instrument: InstrumentEntity,
 
     @Column(name = "available_shares", nullable = false)
     var availableShares: Int,
@@ -34,20 +38,9 @@ class UserHoldingEntity(
     fun toDomain(): UserHolding = UserHolding(
         id = id,
         userId = userId,
-        instrumentId = instrumentId,
+        instrument = instrument.toDomain(),
         availableShares = availableShares,
         heldShares = heldShares,
         totalBuyCost = totalBuyCost
     )
-
-    companion object {
-        fun fromDomain(holding: UserHolding): UserHoldingEntity = UserHoldingEntity(
-            id = holding.id,
-            userId = holding.userId,
-            instrumentId = holding.instrumentId,
-            availableShares = holding.availableShares,
-            heldShares = holding.heldShares,
-            totalBuyCost = holding.totalBuyCost
-        )
-    }
 }

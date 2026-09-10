@@ -13,7 +13,7 @@ data class InstrumentResponse(
             id = instrument.id,
             ticker = instrument.ticker,
             name = instrument.name,
-            type = instrument.type.name
+            type = instrument.type.displayName
         )
     }
 }

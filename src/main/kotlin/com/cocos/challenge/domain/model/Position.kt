@@ -4,21 +4,32 @@ import java.math.BigDecimal
 import java.math.RoundingMode
 
 data class Position(
-    val instrument: Instrument,
-    val quantity: Int,
-    val currentPrice: BigDecimal,
-    val averageBuyPrice: BigDecimal
+    val holding: UserHolding,
+    val marketData: MarketData?
 ) {
+    val instrument: Instrument get() = holding.instrument
+    val quantity: Int get() = holding.heldShares
+
     val marketValue: BigDecimal
-        get() = currentPrice.multiply(BigDecimal(quantity))
+        get() = (marketData?.close ?: BigDecimal.ZERO).multiply(BigDecimal(quantity))
+
+    val dailyReturnPercentage: BigDecimal
+        get() = marketData?.dailyReturnPercentage ?: BigDecimal.ZERO
 
     val totalReturnPercentage: BigDecimal
-        get() = if (averageBuyPrice.signum() == 0) {
-            BigDecimal.ZERO
-        } else {
-            currentPrice.subtract(averageBuyPrice)
-                .divide(averageBuyPrice, 6, RoundingMode.HALF_UP)
-                .multiply(BigDecimal(100))
-                .setScale(2, RoundingMode.HALF_UP)
+        get() {
+            val avg = holding.averageBuyPrice
+            return if (avg.signum() == 0) BigDecimal.ZERO
+                   else (marketData?.close ?: BigDecimal.ZERO).subtract(avg)
+                       .divide(avg, 6, RoundingMode.HALF_UP)
+                       .multiply(BigDecimal(100))
+                       .setScale(2, RoundingMode.HALF_UP)
         }
+
+    companion object {
+        fun from(holding: UserHolding, marketData: MarketData?): Position {
+            require(holding.isPositionable()) { "Holding is not positionable" }
+            return Position(holding = holding, marketData = marketData)
+        }
+    }
 }

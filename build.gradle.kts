@@ -4,6 +4,7 @@ plugins {
     kotlin("jvm") version "2.0.21"
     kotlin("plugin.spring") version "2.0.21"
     kotlin("plugin.jpa") version "2.0.21"
+    id("io.gitlab.arturbosch.detekt") version "1.23.7"
 }
 
 group = "com.cocos"
@@ -36,6 +37,7 @@ dependencies {
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
+    testImplementation("org.mockito.kotlin:mockito-kotlin:5.4.0")
     testRuntimeOnly("com.h2database:h2")
 }
 
@@ -47,4 +49,19 @@ kotlin {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+}
+
+detekt {
+    config.setFrom(file("detekt.yml"))
+    buildUponDefaultConfig = true
+    source.setFrom("src/main/kotlin")
+}
+
+// Detekt 1.23.x was compiled with Kotlin 2.0.10; pin its transitive Kotlin deps to avoid version mismatch.
+configurations.matching { it.name.startsWith("detekt") }.all {
+    resolutionStrategy.eachDependency {
+        if (requested.group == "org.jetbrains.kotlin") {
+            useVersion("2.0.10")
+        }
+    }
 }

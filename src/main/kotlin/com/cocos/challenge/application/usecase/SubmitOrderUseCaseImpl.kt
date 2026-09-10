@@ -4,6 +4,7 @@ import com.cocos.challenge.api.request.SubmitOrderRequest
 import com.cocos.challenge.api.response.OrderResponse
 import com.cocos.challenge.api.usecase.SubmitOrderUseCase
 import com.cocos.challenge.application.exception.InstrumentNotFoundException
+import com.cocos.challenge.application.exception.InvalidOrderException
 import com.cocos.challenge.application.exception.MarketDataNotFoundException
 import com.cocos.challenge.application.exception.UserNotFoundException
 import com.cocos.challenge.application.repository.InstrumentRepository
@@ -11,7 +12,6 @@ import com.cocos.challenge.application.repository.MarketDataRepository
 import com.cocos.challenge.application.repository.OrderRepository
 import com.cocos.challenge.application.repository.UserHoldingRepository
 import com.cocos.challenge.application.repository.UserRepository
-import com.cocos.challenge.domain.exception.InvalidOrderException
 import com.cocos.challenge.domain.model.Instrument
 import com.cocos.challenge.domain.model.Order
 import com.cocos.challenge.domain.model.OrderSide
@@ -43,10 +43,11 @@ class SubmitOrderUseCaseImpl(
         val price = resolvePrice(side, type, instrument, request.price)
         val size = resolveSize(request.size, request.amount, price)
 
+        // Row-level write lock — serializes concurrent submissions for the same user so balance/holding reads are consistent.
         val user = userRepository.findByIdForUpdate(request.userId) ?: throw UserNotFoundException(request.userId)
         val holding = if (!instrument.isCash()) {
             userHoldingRepository.findByUserAndInstrument(request.userId, instrument.id)
-                ?: UserHolding.empty(request.userId, instrument.id)
+                ?: UserHolding.empty(request.userId, instrument)
         } else null
 
         val order = Order.create(user, instrument.id, side, size, price, type, holding)
