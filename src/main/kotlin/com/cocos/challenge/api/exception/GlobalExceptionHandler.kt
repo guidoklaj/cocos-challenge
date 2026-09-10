@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.http.converter.HttpMessageNotReadableException
 import org.springframework.web.bind.MethodArgumentNotValidException
+import org.springframework.web.bind.MissingRequestHeaderException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException
@@ -22,12 +23,20 @@ data class ErrorResponse(
 class GlobalExceptionHandler {
 
     @ExceptionHandler(NotFoundException::class)
-    fun handleNotFound(ex: NotFoundException): ResponseEntity<ErrorResponse> =
+    fun handleNotFoundException(ex: NotFoundException): ResponseEntity<ErrorResponse> =
         error(HttpStatus.NOT_FOUND, ex.message ?: "Resource not found")
 
     @ExceptionHandler(ValidationException::class)
-    fun handleDomainValidation(ex: ValidationException): ResponseEntity<ErrorResponse> =
+    fun handleValidationException(ex: ValidationException): ResponseEntity<ErrorResponse> =
         error(HttpStatus.UNPROCESSABLE_ENTITY, ex.message ?: "Invalid operation")
+
+    @ExceptionHandler(MissingIdempotencyKeyException::class)
+    fun handleMissingIdempotencyKey(ex: MissingIdempotencyKeyException): ResponseEntity<ErrorResponse> =
+        error(HttpStatus.BAD_REQUEST, ex.message ?: "Idempotency-Key header is required")
+
+    @ExceptionHandler(MissingRequestHeaderException::class)
+    fun handleMissingHeader(ex: MissingRequestHeaderException): ResponseEntity<ErrorResponse> =
+        error(HttpStatus.BAD_REQUEST, "Required header '${ex.headerName}' is missing")
 
     @ExceptionHandler(MethodArgumentNotValidException::class)
     fun handleRequestValidation(ex: MethodArgumentNotValidException): ResponseEntity<ErrorResponse> {

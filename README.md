@@ -64,9 +64,9 @@ No Docker required — tests use H2 in PostgreSQL compatibility mode.
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/users/{userId}/portfolio` | Account value, available cash and open positions |
-| `GET` | `/instruments?ticker=&name=&type=` | Search instruments (ticker/name are substring, type is exact) |
+| `GET` | `/instruments?ticker=&name=` | Search instruments by ticker or name (substring match) |
 | `POST` | `/orders` | Submit an order |
-| `DELETE` | `/orders/{orderId}` | Cancel a NEW order |
+| `POST` | `/orders/{orderId}/cancel` | Cancel a NEW order |
 
 ### Order payload
 
@@ -89,7 +89,7 @@ No Docker required — tests use H2 in PostgreSQL compatibility mode.
 
 ### Idempotency
 
-Include an `Idempotency-Key` header on `POST /orders` to avoid duplicate submissions. The response is cached in Redis for 24 hours.
+`POST /orders` requires an `Idempotency-Key` header. Omitting it returns `400`. The response is cached in Redis for 24 hours — repeating the same key returns the cached response without re-executing the order.
 
 ```bash
 curl -X POST http://localhost:8080/orders \

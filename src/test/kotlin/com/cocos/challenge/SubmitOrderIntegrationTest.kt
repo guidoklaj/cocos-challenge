@@ -5,8 +5,10 @@ import com.cocos.challenge.domain.model.OrderStatus
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
+import com.cocos.challenge.config.TestRedisConfig
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.context.annotation.Import
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
@@ -18,6 +20,7 @@ import kotlin.test.assertNotNull
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@Import(TestRedisConfig::class)
 class SubmitOrderIntegrationTest {
 
     @Autowired lateinit var mockMvc: MockMvc
@@ -36,6 +39,7 @@ class SubmitOrderIntegrationTest {
 
         mockMvc.perform(
             post("/orders")
+                .header("Idempotency-Key", java.util.UUID.randomUUID().toString())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(payload))
         )
@@ -60,6 +64,7 @@ class SubmitOrderIntegrationTest {
 
         mockMvc.perform(
             post("/orders")
+                .header("Idempotency-Key", java.util.UUID.randomUUID().toString())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(payload))
         )
@@ -81,6 +86,7 @@ class SubmitOrderIntegrationTest {
         // Latest close for PAMP is 925.85 → 2000 / 925.85 = 2 shares (floor)
         mockMvc.perform(
             post("/orders")
+                .header("Idempotency-Key", java.util.UUID.randomUUID().toString())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(payload))
         )
@@ -101,6 +107,7 @@ class SubmitOrderIntegrationTest {
 
         val json = mockMvc.perform(
             post("/orders")
+                .header("Idempotency-Key", java.util.UUID.randomUUID().toString())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(payload))
         )
@@ -124,6 +131,7 @@ class SubmitOrderIntegrationTest {
 
         mockMvc.perform(
             post("/orders")
+                .header("Idempotency-Key", java.util.UUID.randomUUID().toString())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(payload))
         )
@@ -142,6 +150,7 @@ class SubmitOrderIntegrationTest {
 
         mockMvc.perform(
             post("/orders")
+                .header("Idempotency-Key", java.util.UUID.randomUUID().toString())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(payload))
         )
@@ -160,6 +169,7 @@ class SubmitOrderIntegrationTest {
 
         mockMvc.perform(
             post("/orders")
+                .header("Idempotency-Key", java.util.UUID.randomUUID().toString())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(payload))
         )
@@ -182,6 +192,7 @@ class SubmitOrderIntegrationTest {
         )
         mockMvc.perform(
             post("/orders")
+                .header("Idempotency-Key", java.util.UUID.randomUUID().toString())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(cashInPayload))
         ).andExpect(status().isCreated).andExpect(jsonPath("$.status").value("FILLED"))
@@ -194,6 +205,7 @@ class SubmitOrderIntegrationTest {
         )
         val response = mockMvc.perform(
             post("/orders")
+                .header("Idempotency-Key", java.util.UUID.randomUUID().toString())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(cashOutPayload))
         )

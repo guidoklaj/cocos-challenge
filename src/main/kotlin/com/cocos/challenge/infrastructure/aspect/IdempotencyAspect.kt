@@ -1,13 +1,13 @@
 package com.cocos.challenge.infrastructure.aspect
 
 import com.cocos.challenge.api.annotation.Idempotent
+import com.cocos.challenge.api.exception.MissingIdempotencyKeyException
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.aspectj.lang.ProceedingJoinPoint
 import org.aspectj.lang.annotation.Around
 import org.aspectj.lang.annotation.Aspect
 import org.aspectj.lang.reflect.MethodSignature
 import org.slf4j.LoggerFactory
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.data.redis.core.StringRedisTemplate
 import org.springframework.http.ResponseEntity
 import org.springframework.stereotype.Component
@@ -18,7 +18,6 @@ import java.time.Duration
 
 @Aspect
 @Component
-@ConditionalOnBean(StringRedisTemplate::class)
 class IdempotencyAspect(
     private val redis: StringRedisTemplate,
     private val objectMapper: ObjectMapper
@@ -27,7 +26,8 @@ class IdempotencyAspect(
 
     @Around("@annotation(idempotent)")
     fun handle(pjp: ProceedingJoinPoint, idempotent: Idempotent): Any? {
-        val key = idempotencyKey() ?: return pjp.proceed()
+        val key = idempotencyKey() ?: throw MissingIdempotencyKeyException()
+
         val redisKey = "idempotency:$key"
 
         val cached = try { redis.opsForValue().get(redisKey) } catch (_: Exception) {
@@ -35,9 +35,7 @@ class IdempotencyAspect(
             return pjp.proceed()
         }
 
-        if (cached != null) {
-            return deserialize(cached, pjp)
-        }
+        if (cached != null) return deserialize(cached, pjp)
 
         val result = pjp.proceed()
 
