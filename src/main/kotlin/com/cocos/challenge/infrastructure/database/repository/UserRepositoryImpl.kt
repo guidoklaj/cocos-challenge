@@ -10,9 +10,16 @@ import kotlin.jvm.optionals.getOrNull
 class UserRepositoryImpl(
     private val jpa: UserJpaRepository
 ) : UserRepository {
+
     override fun findById(id: Int): User? =
         jpa.findById(id).getOrNull()?.toDomain()
 
     override fun findByIdForUpdate(id: Int): User? =
         jpa.findByIdForUpdate(id).getOrNull()?.toDomain()
+
+    override fun save(user: User): User {
+        val entity = jpa.findById(user.id).getOrNull() ?: return user
+        entity.availableCash = user.availableCash
+        return jpa.save(entity).toDomain()
+    }
 }

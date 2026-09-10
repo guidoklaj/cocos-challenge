@@ -5,4 +5,5 @@ import com.cocos.challenge.domain.model.User
 interface UserRepository {
     fun findById(id: Int): User?
     fun findByIdForUpdate(id: Int): User?
+    fun save(user: User): User
 }

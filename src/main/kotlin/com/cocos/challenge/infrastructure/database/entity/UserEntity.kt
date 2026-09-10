@@ -7,6 +7,7 @@ import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Table
+import java.math.BigDecimal
 
 @Entity
 @Table(name = "users")
@@ -19,11 +20,15 @@ class UserEntity(
     val email: String,
 
     @Column(name = "account_number", nullable = false, unique = true)
-    val accountNumber: String
+    val accountNumber: String,
+
+    @Column(name = "available_cash", nullable = false)
+    var availableCash: BigDecimal
 ) {
     fun toDomain(): User = User(
         id = requireNotNull(id) { "Persisted user must have an id" },
         email = email,
-        accountNumber = accountNumber
+        accountNumber = accountNumber,
+        availableCash = availableCash
     )
 }

@@ -9,13 +9,15 @@ import com.cocos.challenge.application.exception.UserNotFoundException
 import com.cocos.challenge.application.repository.InstrumentRepository
 import com.cocos.challenge.application.repository.MarketDataRepository
 import com.cocos.challenge.application.repository.OrderRepository
+import com.cocos.challenge.application.repository.UserHoldingRepository
 import com.cocos.challenge.application.repository.UserRepository
 import com.cocos.challenge.domain.exception.InvalidOrderException
 import com.cocos.challenge.domain.model.Instrument
 import com.cocos.challenge.domain.model.Order
 import com.cocos.challenge.domain.model.OrderSide
+import com.cocos.challenge.domain.model.OrderStatus
 import com.cocos.challenge.domain.model.OrderType
-import com.cocos.challenge.domain.service.BalanceCalculator
+import com.cocos.challenge.domain.model.UserHolding
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -25,6 +27,7 @@ import java.math.RoundingMode
 @Service
 class SubmitOrderUseCaseImpl(
     private val userRepository: UserRepository,
+    private val userHoldingRepository: UserHoldingRepository,
     private val instrumentRepository: InstrumentRepository,
     private val orderRepository: OrderRepository,
     private val marketDataRepository: MarketDataRepository,
@@ -34,43 +37,33 @@ class SubmitOrderUseCaseImpl(
 
     @Transactional
     override fun execute(request: SubmitOrderRequest): OrderResponse {
-        val userId = request.userId
         val side = request.side
         val type = request.type
-
-        userRepository.findById(userId) ?: throw UserNotFoundException(userId)
 
         val instrument = resolveInstrument(request, side)
         val price = resolvePrice(side, type, instrument, request.price)
         val size = resolveSize(request.size, request.amount, price)
 
+        // Row-level write lock — serializes concurrent submissions for the same user.
+        val user = userRepository.findByIdForUpdate(request.userId) ?: throw UserNotFoundException(request.userId)
+        val holding = if (!instrument.isCash()) {
+            userHoldingRepository.findByUserAndInstrument(request.userId, instrument.id)
+                ?: UserHolding.empty(request.userId, instrument.id)
+        } else null
 
-        // Serialize concurrent order submissions for this user. Once acquired, no other
-        // transaction can insert an order for this userId until we commit — the balance
-        // scalars we're about to compute reflect a stable, committed view of the world.
-        orderRepository.lockUserForOrderWrite(userId)
-
-        val availableCash = when (side) {
-            OrderSide.BUY, OrderSide.CASH_OUT ->
-                BalanceCalculator.availableCash(orderRepository.aggregateByUser(userId))
-            else -> null
+        val totalAmount = price.multiply(BigDecimal(size))
+        val funded = when (side) {
+            OrderSide.BUY, OrderSide.CASH_OUT -> user.canAfford(totalAmount)
+            OrderSide.SELL                     -> holding?.hasEnoughShares(size) ?: false
+            OrderSide.CASH_IN                  -> true
         }
-        val availableShares = when (side) {
-            OrderSide.SELL ->
-                BalanceCalculator.availableShares(orderRepository.aggregateByUser(userId), instrument.id)
-            else -> null
+        val order = Order.create(request.userId, instrument.id, side, size, price, type, funded)
+
+        if (order.status != OrderStatus.REJECTED) {
+            userRepository.save(user.applyOrder(order))
+            holding?.applyOrder(order)?.let { userHoldingRepository.save(it) }
         }
 
-        val order = Order.create(
-            userId = userId,
-            instrumentId = instrument.id,
-            side = side,
-            size = size,
-            price = price,
-            type = type,
-            availableCash = availableCash,
-            availableShares = availableShares
-        )
         return OrderResponse.from(orderRepository.save(order))
     }
 
@@ -85,30 +78,22 @@ class SubmitOrderUseCaseImpl(
             else -> null
         } ?: throw InstrumentNotFoundException(request.ticker ?: request.instrumentId.toString())
 
-        if (instrument.isCash()) {
-            throw InvalidOrderException("Cannot BUY/SELL cash instruments; use CASH_IN or CASH_OUT")
-        }
+        if (instrument.isCash()) throw InvalidOrderException("Cannot BUY/SELL cash instruments; use CASH_IN or CASH_OUT")
         return instrument
     }
 
-    private fun resolvePrice(
-        side: OrderSide,
-        type: OrderType,
-        instrument: Instrument,
-        requestedPrice: BigDecimal?
-    ): BigDecimal = when {
-        side.isCashMovement -> BigDecimal.ONE
-        type == OrderType.LIMIT -> requestedPrice!!
-        else -> marketDataRepository.findLatestByInstrumentId(instrument.id)?.close
-            ?: throw MarketDataNotFoundException(instrument.id)
-    }
+    private fun resolvePrice(side: OrderSide, type: OrderType, instrument: Instrument, requestedPrice: BigDecimal?): BigDecimal =
+        when {
+            side.isCashMovement -> BigDecimal.ONE
+            type == OrderType.LIMIT -> requestedPrice!!
+            else -> marketDataRepository.findLatestByInstrumentId(instrument.id)?.close
+                ?: throw MarketDataNotFoundException(instrument.id)
+        }
 
     private fun resolveSize(size: Int?, amount: BigDecimal?, price: BigDecimal): Int {
         if (size != null) return size
         val shares = amount!!.divide(price, 0, RoundingMode.FLOOR).toInt()
-        if (shares <= 0) {
-            throw InvalidOrderException("amount is too small to purchase a single share at price $price")
-        }
+        if (shares <= 0) throw InvalidOrderException("amount is too small to purchase a single share at price $price")
         return shares
     }
 }

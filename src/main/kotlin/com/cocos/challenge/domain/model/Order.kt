@@ -23,20 +23,6 @@ data class Order(
     fun cancelled(): Order = copy(status = OrderStatus.CANCELLED)
 
     companion object {
-        /**
-         * Domain factory that decides the order's initial status against pre-computed
-         * balance scalars supplied by the caller.
-         *
-         * - BUY / CASH_OUT require `availableCash`; the order is `REJECTED` if it doesn't
-         *   cover `size * price`.
-         * - SELL requires `availableShares` for the target instrument; `REJECTED` if it
-         *   doesn't cover `size`.
-         * - CASH_IN always funds.
-         * - Once funded, MARKET orders and cash movements are `FILLED`; LIMIT orders stay `NEW`.
-         *
-         * Callers are expected to serialize concurrent creations for the same user (e.g. via
-         * a per-user lock) so the scalars they compute from the DB reflect committed state.
-         */
         fun create(
             userId: Int,
             instrumentId: Int,
@@ -44,22 +30,9 @@ data class Order(
             size: Int,
             price: BigDecimal,
             type: OrderType,
-            availableCash: BigDecimal? = null,
-            availableShares: Int? = null,
+            funded: Boolean,
             now: LocalDateTime = LocalDateTime.now()
         ): Order {
-            val totalAmount = price.multiply(BigDecimal(size))
-            val funded = when (side) {
-                OrderSide.BUY, OrderSide.CASH_OUT ->
-                    requireNotNull(availableCash) {
-                        "availableCash is required for $side orders"
-                    } >= totalAmount
-                OrderSide.SELL ->
-                    requireNotNull(availableShares) {
-                        "availableShares is required for SELL orders"
-                    } >= size
-                OrderSide.CASH_IN -> true
-            }
             val status = when {
                 !funded -> OrderStatus.REJECTED
                 side.isCashMovement || type == OrderType.MARKET -> OrderStatus.FILLED
