@@ -1,0 +1,129 @@
+{
+  "info": {
+    "_postman_id": "f83a4500-6bb9-4c72-9274-5d63b56d8276",
+    "name": "Cocos Challenge",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "23133998"
+  },
+  "item": [
+    {
+      "name": "Get Portfolio",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8080/users/1/portfolio",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "users",
+            "1",
+            "portfolio"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Search Instruments",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8080/instruments?ticker=METR&name=MetroGAS",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "instruments"
+          ],
+          "query": [
+            {
+              "key": "ticker",
+              "value": "METR"
+            },
+            {
+              "key": "name",
+              "value": "MetroGAS"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Submit Order",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Idempotency-Key",
+            "value": "ewwerrewq",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"userId\": 1,\n    \"ticker\": \"METR\",\n    \"side\": \"SELL\",\n    \"type\": \"MARKET\",\n    \"amount\": 5000\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8080/orders",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "orders"
+          ],
+          "query": [
+            {
+              "key": "name",
+              "value": "",
+              "disabled": true
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Cancel Order",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8080/orders/12/cancel",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "orders",
+            "12",
+            "cancel"
+          ],
+          "query": [
+            {
+              "key": "name",
+              "value": "",
+              "disabled": true
+            }
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}
