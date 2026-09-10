@@ -20,6 +20,9 @@ data class Order(
     val isCancellable: Boolean
         get() = status == OrderStatus.NEW
 
+    val isRejected: Boolean
+        get() = status == OrderStatus.REJECTED
+
     fun cancelled(): Order = copy(status = OrderStatus.CANCELLED)
 
     companion object {

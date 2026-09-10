@@ -59,7 +59,7 @@ class SubmitOrderUseCaseImpl(
         }
         val order = Order.create(request.userId, instrument.id, side, size, price, type, funded)
 
-        if (order.status != OrderStatus.REJECTED) {
+        if (order.isRejected) {
             userRepository.save(user.applyOrder(order))
             holding?.applyOrder(order)?.let { userHoldingRepository.save(it) }
         }
